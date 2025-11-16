@@ -1,91 +1,40 @@
-# =========================
-# app.py — YOLOv8 Streamlit App
-# =========================
-
 import streamlit as st
 from ultralytics import YOLO
 import cv2
-import os
+import numpy as np
 from PIL import Image
-import tempfile
 
-import subprocess
-import sys
+# Load YOLOv8 model
+model = YOLO("yolov8n.pt")
 
-subprocess.check_call([sys.executable, "-m", "pip", "install", "matplotlib==3.8.0"])
+st.title("YOLOv8 Object Detection App")
+st.write("Upload an image and detect objects!")
 
-subprocess.check_call([sys.executable, "-m", "pip", "install", "matplotlib"])
+uploaded_file = st.file_uploader("Choose an image", type=["jpg", "jpeg", "png"])
 
-# ------------------------
-# Streamlit Page Config
-# ------------------------
-st.set_page_config(page_title="YOLOv8 Object Detection", layout="wide")
-st.title("YOLOv8 Object Detection with Streamlit")
+if uploaded_file:
+    # Read the image
+    image = Image.open(uploaded_file)
+    img_array = np.array(image)
 
-# ------------------------
-# Sidebar - Upload File
-# ------------------------
-st.sidebar.header("Upload Image or Video")
-uploaded_file = st.sidebar.file_uploader("Choose an image or video", type=["jpg","jpeg","png","mp4","mov"])
+    st.image(img_array, caption="Uploaded Image", use_column_width=True)
 
-# ------------------------
-# Load YOLOv8 Model
-# ------------------------
-st.sidebar.header("YOLOv8 Model")
-model_option = st.sidebar.selectbox("Select YOLOv8 model", ["yolov8n.pt", "yolov8s.pt", "yolov8m.pt"])
-model = YOLO(model_option)
+    # Run YOLO detection
+    results = model.predict(img_array)
 
-# ------------------------
-# Image Detection
-# ------------------------
-if uploaded_file is not None:
-    file_ext = uploaded_file.name.split('.')[-1].lower()
+    # Convert result to annotated image
+    annotated = results[0].plot()
 
-    if file_ext in ["jpg", "jpeg", "png"]:
-        # Save uploaded image temporarily
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_ext}")
-        temp_file.write(uploaded_file.read())
-        temp_file_path = temp_file.name
+    st.image(annotated, caption="Detected Objects", use_column_width=True)
 
-        st.image(temp_file_path, caption="Uploaded Image", use_column_width=True)
+    # Optionally download result
+    result_img = Image.fromarray(annotated)
+    result_img.save("result.jpg")
 
-        # Run YOLO prediction
-        results = model(temp_file_path)
-
-        # Save output
-        output_path = "output_image.jpg"
-        results[0].save(output_path)
-        st.image(output_path, caption="YOLOv8 Output", use_column_width=True)
-
-    elif file_ext in ["mp4", "mov"]:
-        # Save uploaded video temporarily
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_ext}")
-        temp_file.write(uploaded_file.read())
-        temp_file_path = temp_file.name
-
-        st.video(temp_file_path, format="video/mp4", start_time=0)
-
-        # Run YOLO prediction on video
-        results = model.predict(
-            source=temp_file_path,
-            save=True,
-            project="runs",
-            name="video_output",
-            save_frames=False
+    with open("result.jpg", "rb") as file:
+        st.download_button(
+            label="Download Result",
+            data=file,
+            file_name="detected_image.jpg",
+            mime="image/jpeg"
         )
-
-        output_video_path = os.path.join("runs/video_output", os.listdir("runs/video_output")[0])
-        st.video(output_video_path, format="video/mp4")
-
-# ------------------------
-# Instructions
-# ------------------------
-st.sidebar.markdown("""
-### Instructions:
-1. Upload an image (jpg/png) or video (mp4/mov).
-2. Select the YOLOv8 model.
-3. View the output image or video.
-""")
-
-
-
