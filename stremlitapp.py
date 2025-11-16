@@ -9,6 +9,10 @@ import os
 from PIL import Image
 import tempfile
 
+import subprocess
+import sys
+subprocess.check_call([sys.executable, "-m", "pip", "install", "matplotlib"])
+
 # ------------------------
 # Streamlit Page Config
 # ------------------------
@@ -79,3 +83,4 @@ st.sidebar.markdown("""
 2. Select the YOLOv8 model.
 3. View the output image or video.
 """)
+
